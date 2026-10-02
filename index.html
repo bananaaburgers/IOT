@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analisis Sentimen & Penerimaan Digital Aplikasi MyPertamina</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Custom Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pertamina: {
+                            primary: "#E30613",
+                            blue: "#005DAA",
+                            accent: "#00A39A",
+                        },
+                        slate: {
+                            950: "#0F172A",
+                        },
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+                    },
+                    boxShadow: {
+                        glow: "0 0 0 1px rgba(0, 163, 154, 0.15), 0 10px 60px -30px rgba(0, 93, 170, 0.45)",
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 93, 170, 0.6);
+            border-radius: 9999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 163, 154, 0.8);
+        }
+
+        body {
+            background: radial-gradient(circle at top, rgba(0, 93, 170, 0.08), transparent 55%),
+                #0f172a;
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(18px) saturate(120%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 80px -40px rgba(227, 6, 19, 0.35);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 163, 154, 0.45);
+            transition: all 0.25s ease-in-out;
+        }
+
+        .nav-link.active {
+            background: linear-gradient(90deg, rgba(227, 6, 19, 0.25) 0%, rgba(0, 93, 170, 0.25) 100%);
+            border-color: rgba(0, 163, 154, 0.5);
+            color: #f8fafc;
+        }
+
+        .chart-container {
+            position: relative;
+            height: clamp(280px, 40vw, 360px);
+            width: 100%;
+        }
+
+        .chart-container-sm {
+            position: relative;
+            height: clamp(240px, 35vw, 320px);
+            width: 100%;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: #ffffff;
+                color: #0f172a;
+            }
+
+            .glass-card {
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen font-sans text-slate-100">
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebarOverlay"
+        class="no-print fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 lg:hidden">
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+        class="no-print fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/10 bg-slate-950/95 px-5 py-6 backdrop-blur-xl transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:static lg:inset-0 lg:z-0">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div
+                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-pertamina-primary to-pertamina-blue shadow-lg shadow-pertamina-primary/30">
+                    <i data-lucide="bar-chart-3" class="h-6 w-6 text-white"></i>
+                </div>
+                <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-pertamina-accent/80">
+                        BBDM 26D - FK UNDIP
+                    </p>
+                    <h1 class="text-lg font-semibold leading-tight text-white">
+                        MyPertamina Sentiment
+                    </h1>
+                </div>
+            </div>
+            <button id="closeSidebarBtn"
+                class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden">
+                <i data-lucide="x" class="h-5 w-5"></i>
+            </button>
+        </div>
+
+        <nav class="mt-8 flex flex-1 flex-col gap-2">
+            <p class="px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Navigasi
+            </p>
+            <a href="#overview" data-nav
+                class="nav-link group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-slate-300 transition hover:border-white/10 hover:bg-white/5 hover:text-white">
+                <i data-lucide="layout-dashboard" class="h-5 w-5 text-pertamina-accent"></i>
+                <span class="font-medium">Ringkasan & KPI</span>
+            </a>
+            <a href="#visualization" data-nav
+                class="nav-link group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-slate-300 transition hover:border-white/10 hover:bg-white/5 hover:text-white">
+                <i data-lucide="pie-chart" class="h-5 w-5 text-pertamina-accent"></i>
+                <span class="font-medium">Visualisasi Data</span>
+            </a>
+            <a href="#datatable" data-nav
+                class="nav-link group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-slate-300 transition hover:border-white/10 hover:bg-white/5 hover:text-white">
+                <i data-lucide="table" class="h-5 w-5 text-pertamina-accent"></i>
+                <span class="font-medium">Tabel Ulasan</span>
+            </a>
+            <a href="#analysis" data-nav
+                class="nav-link group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-slate-300 transition hover:border-white/10 hover:bg-white/5 hover:text-white">
+                <i data-lucide="brain-circuit" class="h-5 w-5 text-pertamina-accent"></i>
+                <span class="font-medium">Analisis 5W1H & Temuan</span>
+            </a>
+            <a href="#recommendation" data-nav
+                class="nav-link group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-slate-300 transition hover:border-white/10 hover:bg-white/5 hover:text-white">
+                <i data-lucide="lightbulb" class="h-5 w-5 text-pertamina-accent"></i>
+                <span class="font-medium">Rekomendasi & Keterbatasan</span>
+            </a>
+        </nav>
+
+        <div class="mt-8 space-y-3 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/90 to-slate-950/90 p-4">
+            <p class="text-xs uppercase tracking-wider text-slate-400">
+                Info Penelitian
+            </p>
+            <p class="text-sm leading-relaxed text-slate-300">
+                Studi Sentimen Ulasan Pengguna MyPertamina pada Google Play Store
+                (Periode: Agustus – September 2026).
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-primary/40 bg-pertamina-primary/15 px-2.5 py-0.5 text-xs font-medium text-rose-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-pertamina-primary"></span>
+                    Sentimen Analisis
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-blue/40 bg-pertamina-blue/15 px-2.5 py-0.5 text-xs font-medium text-sky-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-pertamina-blue"></span>
+                    Korelasi Statistik
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-accent/40 bg-pertamina-accent/15 px-2.5 py-0.5 text-xs font-medium text-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-pertamina-accent"></span>
+                    Visual Interaktif
+                </span>
+            </div>
+        </div>
+
+        <p class="mt-6 text-center text-xs text-slate-500">
+            Dibuat dengan HTML5, Tailwind CSS, JavaScript (ES6+) & Chart.js
+        </p>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex min-h-screen flex-col lg:pl-72">
+        <!-- Top Navigation -->
+        <header
+            class="no-print sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 px-4 py-4 backdrop-blur-xl sm:px-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <button id="openSidebarBtn"
+                        class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden">
+                        <i data-lucide="menu" class="h-5 w-5"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-lg font-semibold text-white sm:text-xl">
+                            Analisis Sentimen & Penerimaan Digital Aplikasi MyPertamina
+                        </h2>
+                        <p class="text-xs text-slate-400 sm:text-sm">
+                            Studi Sentimen Ulasan Pengguna pada Google Play Store (BBDM 26D - Fakultas Kedokteran UNDIP)
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <button id="refreshDataBtn"
+                        class="group flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40">
+                        <i data-lucide="refresh-cw" class="h-4 w-4 transition-transform group-hover:rotate-180"></i>
+                        <span>Segarkan Data</span>
+                    </button>
+                    <button id="printBtn"
+                        class="group flex items-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-pertamina-blue/80 to-pertamina-accent/80 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-pertamina-accent/20 transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-pertamina-accent/50">
+                        <i data-lucide="printer" class="h-4 w-4"></i>
+                        <span>Cetak / Simpan PDF</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 space-y-8 px-4 py-6 sm:px-6 sm:py-8">
+            <!-- Section A: KPI Summary Cards -->
+            <section id="overview" class="space-y-6">
+                <div class="flex flex-col gap-2">
+                    <h3 class="text-xl font-semibold text-white sm:text-2xl">
+                        Ringkasan Utama (Key Performance Indicators)
+                    </h3>
+                    <p class="text-sm text-slate-400">
+                        Gambaran umum distribusi sentimen, rating rata-rata, dan kekuatan korelasi penerimaan teknologi.
+                    </p>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <!-- KPI 1 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Total Sample Ulasan
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-white">150 Ulasan</h4>
+                                <p class="mt-1 text-xs text-slate-400">
+                                    Periode: Agustus – September 2026
+                                </p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-pertamina-blue/20 text-pertamina-blue ring-1 ring-pertamina-blue/40">
+                                <i data-lucide="messages-square" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-pertamina-blue/15 px-2.5 py-0.5 text-xs font-medium text-sky-200 ring-1 ring-pertamina-blue/40">
+                            <i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+                            Data Satu Titik Waktu
+                        </div>
+                    </article>
+
+                    <!-- KPI 2 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Average Rating
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-white">3.52 / 5.0</h4>
+                                <p class="mt-1 text-xs text-slate-400">
+                                    Rata-rata penilaian pengguna
+                                </p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
+                                <i data-lucide="star" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-medium text-amber-200 ring-1 ring-amber-400/40">
+                            <i data-lucide="trending-up" class="h-3.5 w-3.5"></i>
+                            Cenderung Sedang
+                        </div>
+                    </article>
+
+                    <!-- KPI 3 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Sentimen Positif
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-emerald-300">60.0%</h4>
+                                <p class="mt-1 text-xs text-slate-400">90 Ulasan</p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-pertamina-accent/20 text-pertamina-accent ring-1 ring-pertamina-accent/40">
+                                <i data-lucide="thumbs-up" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full bg-gradient-to-r from-pertamina-accent to-emerald-400"
+                                style="width: 60%"></div>
+                        </div>
+                    </article>
+
+                    <!-- KPI 4 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Sentimen Negatif
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-rose-300">34.7%</h4>
+                                <p class="mt-1 text-xs text-slate-400">52 Ulasan</p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-pertamina-primary/20 text-pertamina-primary ring-1 ring-pertamina-primary/40">
+                                <i data-lucide="thumbs-down" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full bg-gradient-to-r from-pertamina-primary to-rose-500"
+                                style="width: 34.7%"></div>
+                        </div>
+                    </article>
+
+                    <!-- KPI 5 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Sentimen Netral
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-slate-200">5.3%</h4>
+                                <p class="mt-1 text-xs text-slate-400">8 Ulasan</p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-500/30 text-slate-200 ring-1 ring-slate-400/40">
+                                <i data-lucide="minus-circle" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full bg-gradient-to-r from-slate-400 to-slate-300"
+                                style="width: 5.3%"></div>
+                        </div>
+                    </article>
+
+                    <!-- KPI 6 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Korelasi Rating vs Sentimen
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-sky-200">r = 0.68</h4>
+                                <p class="mt-1 text-xs text-slate-400">Pearson Correlation</p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-pertamina-blue/20 text-sky-200 ring-1 ring-pertamina-blue/40">
+                                <i data-lucide="link-2" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-pertamina-blue/15 px-2.5 py-0.5 text-xs font-medium text-sky-200 ring-1 ring-pertamina-blue/40">
+                            <i data-lucide="bar-chart-horizontal" class="h-3.5 w-3.5"></i>
+                            Interpretasi: Cukup Kuat
+                        </div>
+                    </article>
+
+                    <!-- KPI 7 -->
+                    <article
+                        class="stat-card glass-card group flex flex-col justify-between rounded-3xl p-5 transition-all duration-300">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-slate-400">
+                                    Panjang Ulasan vs Rating
+                                </p>
+                                <h4 class="mt-2 text-3xl font-bold text-slate-200">r = -0.19</h4>
+                                <p class="mt-1 text-xs text-slate-400">Pearson Correlation</p>
+                            </div>
+                            <div
+                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-500/30 text-slate-200 ring-1 ring-slate-400/40">
+                                <i data-lucide="trending-down" class="h-6 w-6"></i>
+                            </div>
+                        </div>
+                        <div
+                            class="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-slate-500/20 px-2.5 py-0.5 text-xs font-medium text-slate-200 ring-1 ring-slate-400/40">
+                            <i data-lucide="activity" class="h-3.5 w-3.5"></i>
+                            Interpretasi: Sangat Lemah
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Section B: Visualisasi Data -->
+            <section id="visualization" class="space-y-6">
+                <div class="flex flex-col gap-2">
+                    <h3 class="text-xl font-semibold text-white sm:text-2xl">
+                        Visualisasi Data (Interactive Charts)
+                    </h3>
+                    <p class="text-sm text-slate-400">
+                        Distribusi sentimen, isu keluhan utama, serta analisis korelasi rating dan panjang ulasan.
+                    </p>
+                </div>
+
+                <div class="grid gap-6 lg:grid-cols-2">
+                    <!-- Doughnut Chart - Distribusi Sentimen -->
+                    <article class="glass-card flex flex-col rounded-3xl p-6">
+                        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">
+                                    1. Distribusi Sentimen Pengguna
+                                </h4>
+                                <p class="text-sm text-slate-400">
+                                    Proporsi Positif, Netral, dan Negatif (n=150)
+                                </p>
+                            </div>
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-slate-200">
+                                <i data-lucide="chart-donut" class="h-3.5 w-3.5"></i>
+                                Doughnut Chart
+                            </span>
+                        </div>
+                        <div class="chart-container flex items-center justify-center">
+                            <canvas id="sentimentDoughnutChart"></canvas>
+                        </div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
+                            <div class="rounded-2xl border border-pertamina-accent/40 bg-pertamina-accent/10 p-2">
+                                <p class="font-semibold text-emerald-200">Positif</p>
+                                <p class="text-slate-200">60.0% (90)</p>
+                            </div>
+                            <div class="rounded-2xl border border-slate-400/40 bg-slate-400/10 p-2">
+                                <p class="font-semibold text-slate-200">Netral</p>
+                                <p class="text-slate-200">5.3% (8)</p>
+                            </div>
+                            <div class="rounded-2xl border border-pertamina-primary/40 bg-pertamina-primary/10 p-2">
+                                <p class="font-semibold text-rose-200">Negatif</p>
+                                <p class="text-slate-200">34.7% (52)</p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- Bar Chart - Isu Keluhan Utama -->
+                    <article class="glass-card flex flex-col rounded-3xl p-6">
+                        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">
+                                    2. Isu / Tema Keluhan Utama (Ulasan Negatif)
+                                </h4>
+                                <p class="text-sm text-slate-400">
+                                    Klasifikasi tema berdasarkan ulasan negatif (n=52)
+                                </p>
+                            </div>
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-slate-200">
+                                <i data-lucide="bar-chart-3" class="h-3.5 w-3.5"></i>
+                                Bar Chart
+                            </span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="complaintBarChart"></canvas>
+                        </div>
+                        <p class="mt-3 text-xs text-slate-400">
+                            *Persentase dihitung terhadap total ulasan negatif untuk menonjolkan akar permasalahan.
+                        </p>
+                    </article>
+                </div>
+
+                <!-- Scatter Plot - Korelasi -->
+                <article class="glass-card flex flex-col rounded-3xl p-6">
+                    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h4 class="text-lg font-semibold text-white">
+                                3. Analisis Korelasi (Rating vs Sentimen & Panjang Ulasan vs Rating)
+                            </h4>
+                            <p class="text-sm text-slate-400">
+                                Visualisasi hubungan linear berdasarkan sampel ulasan (n=150). Mapping numerik: Positif=1,
+                                Netral=0.5, Negatif=0.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-blue/40 bg-pertamina-blue/15 px-2.5 py-0.5 text-xs font-medium text-sky-200">
+                                <span class="h-1.5 w-1.5 rounded-full bg-pertamina-blue"></span>
+                                Rating vs Sentimen Skor: r = 0.68 (Cukup Kuat)
+                            </span>
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-slate-400/40 bg-slate-400/15 px-2.5 py-0.5 text-xs font-medium text-slate-200">
+                                <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                                Panjang Ulasan vs Rating: r = -0.19 (Sangat Lemah)
+                            </span>
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium text-slate-200">
+                                <i data-lucide="scatter-chart" class="h-3.5 w-3.5"></i>
+                                Scatter Plot
+                            </span>
+                        </div>
+                    </div>
+                    <div class="chart-container-sm">
+                        <canvas id="correlationScatterChart"></canvas>
+                    </div>
+                    <p class="mt-3 text-xs text-slate-400">
+                        Catatan: Titik data merupakan representasi sampel untuk memvisualisasikan kecenderungan korelasi
+                        yang dilaporkan (Pearson r).
+                    </p>
+                </article>
+            </section>
+
+            <!-- Section C: Data Table -->
+            <section id="datatable" class="space-y-6">
+                <div class="flex flex-col gap-2">
+                    <h3 class="text-xl font-semibold text-white sm:text-2xl">
+                        Tabel Ulasan Sample (Interaktif)
+                    </h3>
+                    <p class="text-sm text-slate-400">
+                        15 sampel ulasan dari Google Play Store dengan fitur pencarian dan filter berdasarkan kategori
+                        sentimen.
+                    </p>
+                </div>
+
+                <article class="glass-card rounded-3xl p-6">
+                    <!-- Controls -->
+                    <div
+                        class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:w-2/3">
+                            <!-- Search Bar -->
+                            <div class="relative w-full sm:max-w-md">
+                                <i data-lucide="search"
+                                    class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+                                <input id="searchInput" type="text"
+                                    placeholder="Cari ulasan, kata kunci, atau rating..."
+                                    class="w-full rounded-2xl border border-white/10 bg-slate-950/60 pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 shadow-inner outline-none transition focus:border-pertamina-accent/60 focus:ring-2 focus:ring-pertamina-accent/30" />
+                            </div>
+
+                            <!-- Filter Sentiment -->
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button data-filter="Semua"
+                                    class="filter-btn active flex items-center gap-1.5 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40 sm:text-sm">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-slate-200"></span>
+                                    Semua
+                                </button>
+                                <button data-filter="Positif"
+                                    class="filter-btn flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40 sm:text-sm">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-pertamina-accent"></span>
+                                    Positif
+                                </button>
+                                <button data-filter="Netral"
+                                    class="filter-btn flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40 sm:text-sm">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                                    Netral
+                                </button>
+                                <button data-filter="Negatif"
+                                    class="filter-btn flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40 sm:text-sm">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-pertamina-primary"></span>
+                                    Negatif
+                                </button>
+                                <button id="resetFilterBtn"
+                                    class="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40 sm:text-sm">
+                                    <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 sm:justify-end">
+                            <p class="text-sm text-slate-400">
+                                Menampilkan <span id="tableCount" class="font-semibold text-white">15</span> dari 15
+                                ulasan
+                            </p>
+                            <button id="exportCsvBtn"
+                                class="group flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-pertamina-accent/40">
+                                <i data-lucide="download" class="h-4 w-4"></i>
+                                <span>Ekspor CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto rounded-2xl border border-white/10">
+                        <table class="min-w-full divide-y divide-white/10">
+                            <thead class="bg-slate-950/70 backdrop-blur">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 sm:px-5">
+                                        No.
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 sm:px-5">
+                                        Ulasan Pengguna
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 sm:px-5">
+                                        Rating
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 sm:px-5">
+                                        Sentimen
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 sm:px-5">
+                                        Tanggal
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="reviewTableBody" class="divide-y divide-white/5 bg-slate-950/40">
+                                <!-- Rows will be injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="noResults" class="mt-4 hidden text-center text-sm text-slate-400">
+                        Tidak ditemukan ulasan yang sesuai dengan pencarian/filter Anda.
+                    </p>
+                </article>
+            </section>
+
+            <!-- Section D: 5W1H & Temuan Utama -->
+            <section id="analysis" class="space-y-6">
+                <div class="flex flex-col gap-2">
+                    <h3 class="text-xl font-semibold text-white sm:text-2xl">
+                        Analisis 5W1H & Temuan Utama
+                    </h3>
+                    <p class="text-sm text-slate-400">
+                        Kerangka analisis untuk menjelaskan faktor-faktor yang memengaruhi penerimaan aplikasi
+                        MyPertamina.
+                    </p>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <!-- WHAT -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-pertamina-blue/20 text-pertamina-blue ring-1 ring-pertamina-blue/40">
+                                <i data-lucide="help-circle" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">WHAT (Apa)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Faktor-faktor yang berasosiasi dengan fluktuasi ulasan di Google Play Store, yaitu
+                                    performa sistem (loading/server/OTP), kendala registrasi dan verifikasi, serta
+                                    diskrepansi layanan di SPBU (penolakan QR, stok BBM, jam operasional).
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- WHO -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-pertamina-accent/20 text-pertamina-accent ring-1 ring-pertamina-accent/40">
+                                <i data-lucide="users" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">WHO (Siapa)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Pengguna terdampak langsung oleh regulasi/subsidi BBM, khususnya masyarakat yang
+                                    memanfaatkan aplikasi untuk transaksi QR Code MyPertamina dan pemantauan riwayat
+                                    pembelian BBM.
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- WHERE -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
+                                <i data-lucide="map-pin" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">WHERE (Dimana)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Listing publik Google Play Store sebagai kanal umpan balik (review) pengguna yang
+                                    bersifat terbuka dan dapat diakses oleh calon pengguna maupun pengembang.
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- WHEN -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-pertamina-primary/20 text-pertamina-primary ring-1 ring-pertamina-primary/40">
+                                <i data-lucide="clock" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">WHEN (Kapan)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Periode penarikan data Agustus – September 2026, sehingga merepresentasikan kondisi
+                                    aplikasi pada rentang waktu tersebut (satu titik waktu).
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- WHY -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-violet-400/20 text-violet-200 ring-1 ring-violet-400/40">
+                                <i data-lucide="target" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">WHY (Mengapa)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Akar masalah rating rendah berfokus pada aspek sistem (stabilitas server & OTP),
+                                    registrasi/verifikasi yang dianggap ribet, serta kendala implementasi di lapangan
+                                    (SPBU) yang berdampak pada pengalaman pengguna.
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- HOW -->
+                    <article class="glass-card group rounded-3xl p-6 transition hover:border-pertamina-accent/40">
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan-400/20 text-cyan-200 ring-1 ring-cyan-400/40">
+                                <i data-lucide="workflow" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-white">HOW (Bagaimana)</h4>
+                                <p class="mt-2 leading-relaxed text-slate-300">
+                                    Pengukuran korelasi linear penerimaan teknologi melalui Pearson r antara rating vs
+                                    sentimen (r=0.68, cukup kuat) dan panjang ulasan vs rating (r=-0.19, sangat lemah),
+                                    dilengkapi dengan visualisasi dan distribusi sentimen.
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- Temuan Utama -->
+                <article class="glass-card rounded-3xl p-6">
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-pertamina-accent/20 text-pertamina-accent ring-1 ring-pertamina-accent/40">
+                            <i data-lucide="sparkles" class="h-6 w-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-white">Temuan Utama</h4>
+                            <ul class="mt-3 space-y-2 text-sm leading-relaxed text-slate-300 sm:text-base">
+                                <li class="flex gap-2">
+                                    <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pertamina-accent"></span>
+                                    Mayoritas ulasan bersifat positif (60,0%), namun proporsi negatif masih cukup
+                                    signifikan (34,7%) terutama terkait kendala teknis dan operasional SPBU.
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pertamina-blue"></span>
+                                    Terdapat korelasi cukup kuat (r=0,68) antara rating dan sentimen, menunjukkan
+                                    kecenderungan konsisten antara nilai bintang dengan tone ulasan.
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pertamina-primary"></span>
+                                    Panjang ulasan tidak berkorelasi kuat dengan rating (r=-0,19), sehingga keluhan tidak
+                                    selalu bergantung pada panjang teks.
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400"></span>
+                                    Isu dominan ulasan negatif: Registrasi, Verifikasi, & Masalah Barcode (28,8%) serta
+                                    Diskrepansi Layanan SPBU (21,2%), diikuti oleh permasalahan performa sistem/server &
+                                    OTP.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Section E: Rekomendasi & Keterbatasan -->
+            <section id="recommendation" class="space-y-6">
+                <div class="flex flex-col gap-2">
+                    <h3 class="text-xl font-semibold text-white sm:text-2xl">
+                        Rekomendasi & Keterbatasan
+                    </h3>
+                    <p class="text-sm text-slate-400">
+                        Saran tindak lanjut bagi pengembang aplikasi dan arah pengembangan penelitian selanjutnya.
+                    </p>
+                </div>
+
+                <!-- Tab Navigation -->
+                <article class="glass-card rounded-3xl p-2 sm:p-3">
+                    <div class="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-950/60 p-1">
+                        <button data-tab="recommendation-dev"
+                            class="tab-btn active flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 sm:flex-none sm:text-sm">
+                            <i data-lucide="code-2" class="h-4 w-4"></i>
+                            Rekomendasi Pengembang
+                        </button>
+                        <button data-tab="recommendation-research"
+                            class="tab-btn flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10 sm:flex-none sm:text-sm">
+                            <i data-lucide="flask-conical" class="h-4 w-4"></i>
+                            Rekomendasi Peneliti
+                        </button>
+                        <button data-tab="limitations"
+                            class="tab-btn flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10 sm:flex-none sm:text-sm">
+                            <i data-lucide="alert-triangle" class="h-4 w-4"></i>
+                            Keterbatasan
+                        </button>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div class="p-4 sm:p-6">
+                        <!-- Rekomendasi Pengembang -->
+                        <div id="tab-recommendation-dev" class="tab-content fade-in space-y-4">
+                            <h4 class="text-lg font-semibold text-white">
+                                Rekomendasi Bagi Tim Pengembang MyPertamina
+                            </h4>
+                            <ul class="space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-accent/20 text-pertamina-accent ring-1 ring-pertamina-accent/40">
+                                        <span class="text-xs font-semibold">1</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Perbaiki performa aplikasi:</strong> Optimasi waktu
+                                        loading, caching, dan manajemen koneksi untuk mengurangi lag serta meningkatkan
+                                        stabilitas saat jam sibuk.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-blue/20 text-pertamina-blue ring-1 ring-pertamina-blue/40">
+                                        <span class="text-xs font-semibold">2</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Sederhanakan alur registrasi & verifikasi:</strong>
+                                        Minimalkan langkah, tambahkan panduan jelas (onboarding/tooltips), serta
+                                        perbaiki reliabilitas pengiriman OTP untuk mengurangi kegagalan login.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-primary/20 text-pertamina-primary ring-1 ring-pertamina-primary/40">
+                                        <span class="text-xs font-semibold">3</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Tingkatkan stabilitas server jam sibuk:</strong>
+                                        Lakukan load testing, autoscaling, dan monitoring real-time untuk mengantisipasi
+                                        lonjakan trafik pengguna.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
+                                        <span class="text-xs font-semibold">4</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Perbaiki sistem saldo & integrasi SPBU:</strong>
+                                        Audit transaksi untuk mencegah potensi duplikasi pemotongan saldo, serta
+                                        koordinasi dengan mitra SPBU terkait validasi QR, ketersediaan stok BBM dan jam
+                                        operasional.
+                                    </p>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Rekomendasi Peneliti -->
+                        <div id="tab-recommendation-research" class="tab-content fade-in hidden space-y-4">
+                            <h4 class="text-lg font-semibold text-white">
+                                Rekomendasi Untuk Penelitian Selanjutnya
+                            </h4>
+                            <ul class="space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-accent/20 text-pertamina-accent ring-1 ring-pertamina-accent/40">
+                                        <span class="text-xs font-semibold">1</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Gunakan model NLP yang lebih robust:</strong>
+                                        Mempertimbangkan pemanfaatan model berbasis bahasa Indonesia seperti IndoBERT
+                                        atau fine-tuning transformer untuk klasifikasi sentimen yang lebih akurat.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-blue/20 text-pertamina-blue ring-1 ring-pertamina-blue/40">
+                                        <span class="text-xs font-semibold">2</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Perluas sumber data:</strong> Tidak hanya Google Play
+                                        Store, namun juga platform lain seperti X (Twitter), Instagram, TikTok, atau
+                                        forum diskusi untuk menangkap perspektif pengguna yang lebih beragam.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-violet-400/20 text-violet-200 ring-1 ring-violet-400/40">
+                                        <span class="text-xs font-semibold">3</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Lakukan analisis tren waktu:</strong> Analisis
+                                        time-series (bulanan/mingguan) untuk melihat dinamika sentimen seiring pembaruan
+                                        aplikasi atau perubahan kebijakan subsidi BBM.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-200 ring-1 ring-cyan-400/40">
+                                        <span class="text-xs font-semibold">4</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Analisis tematik mendalam:</strong> Menggunakan
+                                        Topic Modeling (LDA, BERTopic) untuk mengidentifikasi tema keluhan secara otomatis
+                                        dan lebih terstruktur.
+                                    </p>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Keterbatasan -->
+                        <div id="tab-limitations" class="tab-content fade-in hidden space-y-4">
+                            <h4 class="text-lg font-semibold text-white">
+                                Keterbatasan Penelitian
+                            </h4>
+                            <ul class="space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-primary/20 text-pertamina-primary ring-1 ring-pertamina-primary/40">
+                                        <span class="text-xs font-semibold">1</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Sampel terbatas:</strong> Hanya 150 ulasan, sehingga
+                                        belum tentu dapat merepresentasikan seluruh populasi pengguna MyPertamina.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40">
+                                        <span class="text-xs font-semibold">2</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Bias penulisan ulasan:</strong> Ulasan di Play Store
+                                        cenderung bersifat ekstrem (sangat puas atau sangat kecewa), sehingga dapat
+                                        terjadi self-selection bias.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-400/20 text-slate-200 ring-1 ring-slate-400/40">
+                                        <span class="text-xs font-semibold">3</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Pelabelan sentimen sederhana:</strong> Pendekatan
+                                        berbasis aturan/manual sederhana memiliki keterbatasan dibandingkan dengan anotasi
+                                        ahli atau model pembelajaran mesin.
+                                    </p>
+                                </li>
+                                <li class="flex gap-3">
+                                    <div
+                                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-pertamina-blue/20 text-pertamina-blue ring-1 ring-pertamina-blue/40">
+                                        <span class="text-xs font-semibold">4</span>
+                                    </div>
+                                    <p>
+                                        <strong class="text-white">Data satu titik waktu:</strong> Periode Agustus –
+                                        September 2026 tidak mencakup perubahan jangka panjang atau tren pasca-pembaruan
+                                        aplikasi secara berkelanjutan.
+                                    </p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Footer -->
+            <footer class="mt-10 border-t border-white/10 pt-6 text-center text-xs text-slate-500 sm:text-sm">
+                <p>
+                    © <span id="currentYear"></span> Analisis Sentimen & Penerimaan Digital Aplikasi MyPertamina —
+                    BBDM 26D, Fakultas Kedokteran, Universitas Diponegoro (UNDIP).
+                </p>
+                <p class="mt-1">
+                    Dashboard ini bersifat interaktif, responsif dan siap dijalankan langsung di browser.
+                </p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            // Set Current Year
+            document.getElementById("currentYear").textContent = new Date().getFullYear();
+
+            // Sample Review Data
+            const reviewData = [
+                { id: 1, ulasan: "Sering nge-lag saat bayar, tapi cukup membantu", rating: 3, sentimen: "Netral", tanggal: "2026-08-15", length: 8 },
+                { id: 2, ulasan: "Transaksi jadi lebih cepat tanpa antre kasir", rating: 5, sentimen: "Positif", tanggal: "2026-08-16", length: 7 },
+                { id: 3, ulasan: "Login susah, OTP tidak kunjung masuk", rating: 1, sentimen: "Negatif", tanggal: "2026-08-18", length: 6 },
+                { id: 4, ulasan: "Poin loyalti oke, tapi UI membingungkan", rating: 3, sentimen: "Netral", tanggal: "2026-08-19", length: 6 },
+                { id: 5, ulasan: "Wajib daftar buat beli Pertalite terasa ribet", rating: 2, sentimen: "Negatif", tanggal: "2026-08-21", length: 7 },
+                { id: 6, ulasan: "Update terbaru bikin tampilan lebih rapi", rating: 5, sentimen: "Positif", tanggal: "2026-08-22", length: 6 },
+                { id: 7, ulasan: "Server sering down saat jam pulang kerja", rating: 1, sentimen: "Negatif", tanggal: "2026-08-24", length: 7 },
+                { id: 8, ulasan: "Membantu memantau riwayat transaksi BBM bulanan", rating: 4, sentimen: "Positif", tanggal: "2026-08-25", length: 7 },
+                { id: 9, ulasan: "Lumayan bagus, notifikasi kadang terlalu sering", rating: 3, sentimen: "Netral", tanggal: "2026-08-27", length: 7 },
+                { id: 10, ulasan: "Verifikasi data kendaraan lama, sudah seminggu", rating: 2, sentimen: "Negatif", tanggal: "2026-08-28", length: 7 },
+                { id: 11, ulasan: "Simpel dan gampang dipakai, tidak ribet", rating: 5, sentimen: "Positif", tanggal: "2026-08-30", length: 6 },
+                { id: 12, ulasan: "Saldo sempat terpotong dua kali transaksi", rating: 1, sentimen: "Negatif", tanggal: "2026-09-01", length: 7 },
+                { id: 13, ulasan: "Bagus untuk pantau promo, loading agak berat", rating: 3, sentimen: "Netral", tanggal: "2026-09-01", length: 7 },
+                { id: 14, ulasan: "Scan barcode SPBU sekarang lebih cepat", rating: 4, sentimen: "Positif", tanggal: "2026-09-02", length: 6 },
+                { id: 15, ulasan: "Kurang jelas untuk pengguna baru, petunjuk minim", rating: 2, sentimen: "Negatif", tanggal: "2026-09-03", length: 8 },
+            ];
+
+            // Sentiment mapping to numeric score for correlation
+            const sentimentToScore = (s) => (s === "Positif" ? 1 : s === "Netral" ? 0.5 : 0);
+
+            // Sidebar
+            const sidebar = document.getElementById("sidebar");
+            const sidebarOverlay = document.getElementById("sidebarOverlay");
+            const openSidebarBtn = document.getElementById("openSidebarBtn");
+            const closeSidebarBtn = document.getElementById("closeSidebarBtn");
+
+            const toggleSidebar = (open) => {
+                if (open) {
+                    sidebar.classList.remove("-translate-x-full");
+                    sidebarOverlay.classList.remove("opacity-0", "pointer-events-none");
+                } else {
+                    sidebar.classList.add("-translate-x-full");
+                    sidebarOverlay.classList.add("opacity-0", "pointer-events-none");
+                }
+            };
+
+            openSidebarBtn.addEventListener("click", () => toggleSidebar(true));
+            closeSidebarBtn.addEventListener("click", () => toggleSidebar(false));
+            sidebarOverlay.addEventListener("click", () => toggleSidebar(false));
+
+            // Nav Links Active State
+            const navLinks = document.querySelectorAll("[data-nav]");
+            const sections = Array.from(navLinks).map((link) => document.querySelector(link.getAttribute("href")));
+
+            const setActiveNav = () => {
+                let current = "#overview";
+                const scrollY = window.scrollY + 120;
+                sections.forEach((section) => {
+                    if (section && section.offsetTop <= scrollY) {
+                        current = `#${section.id}`;
+                    }
+                });
+                navLinks.forEach((link) => {
+                    link.classList.toggle("active", link.getAttribute("href") === current);
+                });
+            };
+
+            window.addEventListener("scroll", setActiveNav);
+            setActiveNav();
+
+            // Table Rendering & Filtering
+            const tableBody = document.getElementById("reviewTableBody");
+            const searchInput = document.getElementById("searchInput");
+            const filterBtns = document.querySelectorAll(".filter-btn");
+            const resetFilterBtn = document.getElementById("resetFilterBtn");
+            const tableCount = document.getElementById("tableCount");
+            const noResults = document.getElementById("noResults");
+
+            let currentFilter = "Semua";
+            let searchTerm = "";
+
+            const getSentimentBadge = (sentimen) => {
+                if (sentimen === "Positif") {
+                    return `<span class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-accent/40 bg-pertamina-accent/15 px-2.5 py-0.5 text-xs font-medium text-emerald-200"><span class="h-1.5 w-1.5 rounded-full bg-pertamina-accent"></span>Positif</span>`;
+                }
+                if (sentimen === "Negatif") {
+                    return `<span class="inline-flex items-center gap-1.5 rounded-full border border-pertamina-primary/40 bg-pertamina-primary/15 px-2.5 py-0.5 text-xs font-medium text-rose-200"><span class="h-1.5 w-1.5 rounded-full bg-pertamina-primary"></span>Negatif</span>`;
+                }
+                return `<span class="inline-flex items-center gap-1.5 rounded-full border border-slate-400/40 bg-slate-400/15 px-2.5 py-0.5 text-xs font-medium text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>Netral</span>`;
+            };
+
+            const renderTable = () => {
+                const filtered = reviewData.filter((item) => {
+                    const matchesFilter = currentFilter === "Semua" || item.sentimen === currentFilter;
+                    const term = searchTerm.toLowerCase();
+                    const matchesSearch =
+                        term === "" ||
+                        item.ulasan.toLowerCase().includes(term) ||
+                        item.sentimen.toLowerCase().includes(term) ||
+                        item.rating.toString().includes(term) ||
+                        item.tanggal.includes(term);
+                    return matchesFilter && matchesSearch;
+                });
+
+                tableBody.innerHTML = "";
+                filtered.forEach((item, index) => {
+                    const row = document.createElement("tr");
+                    row.className = "hover:bg-white/5 transition-colors";
+                    row.innerHTML = `
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-400 sm:px-5">${index + 1}</td>
+                        <td class="max-w-xl px-4 py-3 text-sm leading-relaxed text-slate-100 sm:px-5">${item.ulasan}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm font-semibold text-amber-300 sm:px-5">
+                            <div class="flex items-center gap-1">
+                                <i data-lucide="star" class="h-4 w-4 fill-amber-300/60 text-amber-300"></i>
+                                ${item.rating}/5
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 sm:px-5">${getSentimentBadge(item.sentimen)}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-300 sm:px-5">${item.tanggal}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                lucide.createIcons();
+                tableCount.textContent = filtered.length;
+                noResults.classList.toggle("hidden", filtered.length > 0);
+            };
+
+            searchInput.addEventListener("input", (e) => {
+                searchTerm = e.target.value;
+                renderTable();
+            });
+
+            filterBtns.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    filterBtns.forEach((b) => b.classList.remove("active", "bg-white/10", "border-white/20"));
+                    btn.classList.add("active", "bg-white/10", "border-white/20");
+                    currentFilter = btn.dataset.filter;
+                    renderTable();
+                });
+            });
+
+            resetFilterBtn.addEventListener("click", () => {
+                searchTerm = "";
+                searchInput.value = "";
+                currentFilter = "Semua";
+                filterBtns.forEach((b) => b.classList.remove("active", "bg-white/10", "border-white/20"));
+                document.querySelector('[data-filter="Semua"]').classList.add("active", "bg-white/10", "border-white/20");
+                renderTable();
+            });
+
+            // Export CSV
+            document.getElementById("exportCsvBtn").addEventListener("click", () => {
+                const headers = ["No", "Ulasan", "Rating", "Sentimen", "Tanggal"];
+                const csvRows = [headers.join(",")];
+                reviewData.forEach((item, idx) => {
+                    const ulasanEsc = `"${item.ulasan.replace(/"/g, '""')}"`;
+                    csvRows.push([idx + 1, ulasanEsc, item.rating, item.sentimen, item.tanggal].join(","));
+                });
+                const csvString = csvRows.join("\n");
+                const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "sample-ulasan-mypertamina.csv";
+                link.click();
+                URL.revokeObjectURL(url);
+            });
+
+            // Refresh Data Button (Visual Feedback)
+            document.getElementById("refreshDataBtn").addEventListener("click", () => {
+                const icon = document.querySelector("#refreshDataBtn i");
+                icon.classList.add("animate-spin");
+                setTimeout(() => {
+                    icon.classList.remove("animate-spin");
+                    renderTable();
+                }, 800);
+            });
+
+            // Print Button
+            document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+            // Tabs
+            const tabBtns = document.querySelectorAll(".tab-btn");
+            const tabContents = document.querySelectorAll(".tab-content");
+
+            tabBtns.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const target = btn.dataset.tab;
+                    tabBtns.forEach((b) => b.classList.remove("active", "bg-white/10", "border-white/20"));
+                    btn.classList.add("active", "bg-white/10", "border-white/20");
+                    tabContents.forEach((content) => content.classList.add("hidden"));
+                    document.getElementById(`tab-${target}`).classList.remove("hidden");
+                });
+            });
+
+            // Chart.js Global Defaults
+            Chart.defaults.color = "rgba(226, 232, 240, 0.85)";
+            Chart.defaults.borderColor = "rgba(255, 255, 255, 0.08)";
+            Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+
+            // 1. Sentiment Doughnut Chart
+            const sentimentCtx = document.getElementById("sentimentDoughnutChart").getContext("2d");
+            new Chart(sentimentCtx, {
+                type: "doughnut",
+                data: {
+                    labels: ["Positif", "Netral", "Negatif"],
+                    datasets: [
+                        {
+                            data: [60.0, 5.3, 34.7],
+                            backgroundColor: ["rgba(0, 163, 154, 0.92)", "rgba(148, 163, 184, 0.92)", "rgba(227, 6, 19, 0.92)"],
+                            borderColor: ["rgba(0, 163, 154, 0.45)", "rgba(148, 163, 184, 0.45)", "rgba(227, 6, 19, 0.45)"],
+                            borderWidth: 2,
+                            hoverOffset: 10,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "68%",
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: {
+                                padding: 16,
+                                usePointStyle: true,
+                                pointStyle: "circle",
+                                font: { size: 12 },
+                            },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.label}: ${context.parsed}% (${Math.round((context.parsed / 100) * 150)} ulasan)`,
+                            },
+                        },
+                    },
+                },
+            });
+
+            // 2. Complaint Bar Chart
+            const complaintCtx = document.getElementById("complaintBarChart").getContext("2d");
+            new Chart(complaintCtx, {
+                type: "bar",
+                data: {
+                    labels: [
+                        "Registrasi, Verifikasi, & Masalah Barcode",
+                        "Diskrepansi Layanan SPBU (QR, Stok BBM, Jam Ops.)",
+                        "Performa Sistem / Server & OTP",
+                        "Masalah Saldo (Terpotong Ganda)",
+                        "UI/UX & Petunjuk Pengguna",
+                        "Lainnya",
+                    ],
+                    datasets: [
+                        {
+                            label: "% terhadap Ulasan Negatif (n=52)",
+                            data: [28.8, 21.2, 25.0, 11.5, 7.7, 5.8],
+                            backgroundColor: [
+                                "rgba(227, 6, 19, 0.88)",
+                                "rgba(0, 93, 170, 0.88)",
+                                "rgba(245, 158, 11, 0.88)",
+                                "rgba(168, 85, 247, 0.88)",
+                                "rgba(14, 165, 233, 0.88)",
+                                "rgba(148, 163, 184, 0.88)",
+                            ],
+                            borderRadius: 10,
+                            borderSkipped: false,
+                            maxBarThickness: 48,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: "y",
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 40,
+                            ticks: { callback: (v) => `${v}%` },
+                            grid: { color: "rgba(255,255,255,0.05)" },
+                        },
+                        y: {
+                            grid: { display: false },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.parsed}% (${Math.round((context.parsed / 100) * 52)} ulasan negatif)`,
+                            },
+                        },
+                    },
+                },
+            });
+
+            // 3. Correlation Scatter Chart
+            const corrCtx = document.getElementById("correlationScatterChart").getContext("2d");
+            const correlationDataPoints = reviewData.map((item) => ({
+                x: item.rating, // 1-5
+                y: sentimentToScore(item.sentimen), // 0, 0.5, 1
+                length: item.length,
+                ulasan: item.ulasan,
+                sentimen: item.sentimen,
+            }));
+
+            // Add length vs rating points as second dataset (jitter small for visibility)
+            const lengthVsRatingPoints = reviewData.map((item) => ({
+                x: item.length, // words approx
+                y: item.rating, // 1-5
+                sentimen: item.sentimen,
+                ulasan: item.ulasan,
+            }));
+
+            new Chart(corrCtx, {
+                type: "scatter",
+                data: {
+                    datasets: [
+                        {
+                            label: "Rating vs Skor Sentimen (r=0.68)",
+                            data: correlationDataPoints,
+                            backgroundColor: "rgba(0, 93, 170, 0.92)",
+                            borderColor: "rgba(0, 93, 170, 0.6)",
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                        },
+                        {
+                            label: "Panjang Ulasan (kata) vs Rating (r=-0.19)",
+                            data: lengthVsRatingPoints,
+                            backgroundColor: "rgba(148, 163, 184, 0.92)",
+                            borderColor: "rgba(148, 163, 184, 0.6)",
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            yAxisID: "y1",
+                            xAxisID: "x1",
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: "nearest",
+                        intersect: true,
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: "Rating (Bintang 1 – 5)" },
+                            min: 0.5,
+                            max: 5.5,
+                            ticks: { stepSize: 1 },
+                            grid: { color: "rgba(255,255,255,0.05)" },
+                        },
+                        y: {
+                            title: { display: true, text: "Skor Sentimen (0=Negatif, 0.5=Netral, 1=Positif)" },
+                            min: -0.05,
+                            max: 1.05,
+                            ticks: { stepSize: 0.5 },
+                            grid: { color: "rgba(255,255,255,0.05)" },
+                        },
+                        x1: {
+                            position: "top",
+                            title: { display: true, text: "Panjang Ulasan (Estimasi Jumlah Kata)" },
+                            min: 4,
+                            max: 10,
+                            grid: { drawOnChartArea: false },
+                            ticks: { stepSize: 1 },
+                        },
+                        y1: {
+                            position: "right",
+                            title: { display: true, text: "Rating (1 – 5)" },
+                            min: 0.5,
+                            max: 5.5,
+                            grid: { drawOnChartArea: false },
+                            ticks: { stepSize: 1 },
+                        },
+                    },
+                    plugins: {
+                        legend: {
+                            position: "top",
+                            labels: { usePointStyle: true, padding: 16 },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const d = context.raw;
+                                    if (context.datasetIndex === 0) {
+                                        return `Rating: ${d.x}/5 | Skor Sentimen: ${d.y} (${d.sentimen}) | Kata: ~${d.length}`;
+                                    }
+                                    return `Panjang Ulasan: ~${d.x} kata | Rating: ${d.y}/5 (${d.sentimen})`;
+                                },
+                                afterBody: (items) => {
+                                    const d = items[0].raw;
+                                    return d.ulasan ? `"${d.ulasan}"` : "";
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            // Initial Render
+            renderTable();
+        });
+    </script>
+</body>
+
+</html>
